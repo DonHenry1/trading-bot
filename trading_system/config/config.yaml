@@ -1,0 +1,111 @@
+# =============================================================================
+# Trading System Configuration
+# Every risk-relevant number lives here — never hardcode risk logic elsewhere.
+# =============================================================================
+
+exchange:
+  name: "binance"              # ccxt exchange id; single-exchange for Phase 1
+  market_types: ["spot", "swap"]  # swap == USDT-margined perpetual futures in ccxt
+  testnet: true                 # ALWAYS start true. Flip only after paper validation.
+  api_key_env: "EXCHANGE_API_KEY"      # read from environment, never from this file
+  api_secret_env: "EXCHANGE_API_SECRET"
+  rate_limit_ms: 250            # min ms between REST calls, ccxt enforces if enableRateLimit
+  ws_heartbeat_timeout_s: 30    # if no WS heartbeat in this window -> kill switch
+
+universe:
+  spot:
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "SOL/USDT"
+  perp:
+    - "BTC/USDT:USDT"
+    - "ETH/USDT:USDT"
+  # alt rotation: assets must clear this 30d avg daily volume (USDT) to be eligible
+  min_avg_daily_volume_usdt: 50_000_000
+
+risk:
+  # --- Portfolio-level circuit breakers ---
+  max_drawdown_pct: 0.15          # pause ALL trading at -15% from peak equity
+  daily_loss_limit_pct: 0.04      # stop new risk-taking for the day
+  weekly_loss_limit_pct: 0.08     # stop new risk-taking for the week
+
+  # --- Position sizing ---
+  sizing_method: "vol_target"     # "vol_target" or "fractional_kelly"
+  vol_target_annualized: 0.15     # target portfolio annualized volatility
+  kelly_fraction: 0.25            # used only if sizing_method == fractional_kelly; NEVER 1.0
+
+  # --- Leverage & exposure limits ---
+  max_leverage: 2.0               # applies to perp notional / equity
+  max_single_asset_weight: 0.25   # cap on any one asset's portfolio weight
+  max_correlated_cluster_weight: 0.45  # cap on a correlated cluster (see risk_engine)
+  correlation_threshold: 0.65     # |corr| above this => same cluster
+
+  # --- Per-trade / per-asset risk ---
+  stop_loss_atr_multiple: 2.5     # stop distance = N * ATR(14)
+  take_profit_atr_multiple: 4.0
+  max_slippage_bps: 15            # reject/resize orders modeled above this slippage estimate
+
+  # --- Cost model (used identically in backtest + live decisioning) ---
+  taker_fee_bps: 4.0
+  maker_fee_bps: 2.0
+  estimated_slippage_bps: 5.0
+  perp_funding_lookback_periods: 24   # for expected funding cost estimate
+
+  # --- Kill-switch triggers ---
+  kill_switch:
+    exchange_disconnect: true
+    extreme_vol_zscore: 4.0       # kill switch if realized vol z-score exceeds this
+    anomalous_api_error_rate: 0.2 # fraction of recent calls erroring -> kill switch
+
+strategies:
+  momentum:
+    enabled: true
+    lookback_windows: [24, 72, 168]   # hours; multi-timeframe
+    breakout_atr_multiple: 1.5
+  mean_reversion:
+    enabled: true
+    zscore_entry: 2.0
+    zscore_exit: 0.5
+    lookback_hours: 48
+  vol_regime:
+    enabled: true
+    method: "realized_vol_hmm"        # placeholder for HMM regime detector
+    n_regimes: 3
+  order_flow:
+    enabled: false                    # requires L2 book data feed, off by default
+  ml_signal:
+    enabled: false                    # Phase 2 — needs walk-forward validated features
+  satellite:
+    on_chain: false
+    funding_rate: true
+    sentiment: false
+
+  # signals are blended by this initial static weighting; portfolio module
+  # will eventually support dynamic (performance-based) reweighting
+  blend_weights:
+    momentum: 0.35
+    mean_reversion: 0.35
+    vol_regime: 0.15
+    order_flow: 0.0
+    ml_signal: 0.0
+    satellite: 0.15
+
+backtest:
+  start_date: "2022-01-01"
+  end_date: "2026-01-01"
+  initial_capital_usdt: 100_000
+  bar_interval: "1h"
+  walk_forward:
+    train_window_days: 180
+    test_window_days: 30
+    step_days: 30
+
+monitoring:
+  telegram_bot_token_env: "TELEGRAM_BOT_TOKEN"
+  telegram_chat_id_env: "TELEGRAM_CHAT_ID"
+  daily_report_time_utc: "00:05"
+  alert_on:
+    kill_switch: true
+    drawdown_breach: true
+    daily_loss_limit: true
+    strategy_decay: true
