@@ -14,7 +14,7 @@ services:
     name: trading-system-dashboard
     runtime: static
     rootDir: trading_system/frontend
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
