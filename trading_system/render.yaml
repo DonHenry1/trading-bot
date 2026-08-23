@@ -8,14 +8,14 @@ services:
     healthCheckPath: /health
     envVars:
       - key: CORS_ORIGINS
-        value: https://trading-system-dashboard.onrender.com
+        sync: false
 
   - type: web
     name: trading-system-dashboard
-    runtime: node
+    runtime: static
     rootDir: trading_system/frontend
     buildCommand: npm install && npm run build
-    startCommand: npm run preview -- --host 0.0.0.0 --port $PORT
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://trading-system-api-lhvp.onrender.com
+        sync: false
