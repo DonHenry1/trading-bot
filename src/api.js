@@ -1,11 +1,3 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-async function request(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`, { headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(`API request failed (${response.status})`);
-  return response.json();
-}
-export const api = {
-  status: () => request("/api/status"),
-  config: () => request("/api/config"),
-  portfolio: () => request("/api/portfolio"),
-};
+const API_BASE_URL=(import.meta.env.VITE_API_BASE_URL||"").replace(/\/$/,"");
+async function request(path,options={}){const response=await fetch(`${API_BASE_URL}${path}`,{headers:{Accept:"application/json","Content-Type":"application/json",...(options.headers||{})},...options});if(!response.ok)throw new Error(`API request failed (${response.status})`);return response.json();}
+export const api={status:()=>request("/api/status"),config:()=>request("/api/config"),portfolio:()=>request("/api/portfolio"),signals:()=>request("/api/signals"),events:()=>request("/api/events"),equity:()=>request("/api/equity"),start:()=>request("/api/bot/start",{method:"POST"}),stop:()=>request("/api/bot/stop",{method:"POST"}),kill:()=>request("/api/bot/kill",{method:"POST"}),wallet:()=>request("/api/wallet")};
