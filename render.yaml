@@ -8,8 +8,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: CORS_ORIGINS
-        value: https://trading-system-dashboard.onrender.com
-
+        value: https://trading-system-dashboard-root.onrender.com
   - type: web
     name: trading-system-dashboard
     runtime: node
