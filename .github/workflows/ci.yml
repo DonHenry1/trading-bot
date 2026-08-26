@@ -1,51 +1,35 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 permissions:
   contents: read
-
 jobs:
   backend:
-    name: Backend validation
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: trading_system/requirements.txt
-      - name: Install backend dependencies
-        run: python -m pip install --upgrade pip && pip install -r trading_system/requirements.txt pytest
-      - name: Compile backend
-        run: python -m compileall -q trading_system
-      - name: Run backend tests
-        run: pytest -q
+      - run: python -m pip install --upgrade pip && pip install -r trading_system/requirements.txt pytest
+      - run: python -m compileall -q trading_system
+      - run: cd trading_system && pytest -q
         env:
           PERPL_LIVE_TRADING: 'false'
-
   frontend:
-    name: Frontend validation
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: package-lock.json
-      - name: Install frontend dependencies
-        run: npm ci
-      - name: Build frontend
-        run: npm run build
-      - name: Check production output
-        run: test -f dist/index.html
+      - run: npm ci
+      - run: npm run build
+      - run: test -f dist/index.html
