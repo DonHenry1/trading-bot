@@ -9,9 +9,11 @@ from src.config import load_config
 from src.perpl import PerplClient
 from src.engine import TradingEngine
 ROOT=Path(__file__).resolve().parent; CONFIG_PATH=ROOT/"config"/"config.yaml"
-app=FastAPI(title="Adaptive Perpl Trading System",version="1.3.0")
-origins=[o.strip() for o in os.getenv("CORS_ORIGINS","*").split(",") if o.strip()]
-app.add_middleware(CORSMiddleware,allow_origins=origins,allow_credentials=False,allow_methods=["GET","POST","OPTIONS"],allow_headers=["*"])
+app=FastAPI(title="Adaptive Perpl Trading System",version="1.3.1")
+origins=[o.strip() for o in os.getenv("CORS_ORIGINS","").split(",") if o.strip()]
+# Vercel creates deployment-specific *.vercel.app hostnames. Keep an explicit allow-list when configured,
+# while allowing Vercel preview/production origins so browser preflight requests are not rejected.
+app.add_middleware(CORSMiddleware,allow_origins=origins,allow_origin_regex=r"https://[a-zA-Z0-9-]+\.vercel\.app$",allow_credentials=False,allow_methods=["GET","POST","OPTIONS"],allow_headers=["*"])
 client=PerplClient(); engine=TradingEngine(client); started=time.time()
 def cfg():
     try:return load_config(CONFIG_PATH)
@@ -45,7 +47,6 @@ def positions():return {"positions":client.account_snapshot().get("positions",[]
 def events():return {"events":list(engine.events),"timestamp":time.time()}
 @app.get("/api/broadcast")
 def broadcast(limit:int=Query(50,ge=1,le=300),since:float=Query(0,ge=0)):
-    """Fetchable broadcast/event channel for the Vercel dashboard and other clients."""
     items=[e for e in list(engine.events) if float(e.get("ts",0))>since][:limit]
     return {"channel":"trading-engine","events":items,"cursor":max((float(e.get("ts",0)) for e in items),default=since),"timestamp":time.time()}
 @app.get("/api/equity")
