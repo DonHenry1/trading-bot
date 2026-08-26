@@ -2,14 +2,14 @@
 from __future__ import annotations
 import asyncio, os, time
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from src.config import load_config
 from src.perpl import PerplClient
 from src.engine import TradingEngine
 ROOT=Path(__file__).resolve().parent; CONFIG_PATH=ROOT/"config"/"config.yaml"
-app=FastAPI(title="Adaptive Perpl Trading System",version="1.2.0")
+app=FastAPI(title="Adaptive Perpl Trading System",version="1.3.0")
 origins=[o.strip() for o in os.getenv("CORS_ORIGINS","*").split(",") if o.strip()]
 app.add_middleware(CORSMiddleware,allow_origins=origins,allow_credentials=False,allow_methods=["GET","POST","OPTIONS"],allow_headers=["*"])
 client=PerplClient(); engine=TradingEngine(client); started=time.time()
@@ -17,7 +17,7 @@ def cfg():
     try:return load_config(CONFIG_PATH)
     except Exception as exc:raise HTTPException(503,detail=f"Configuration unavailable: {exc}") from exc
 @app.get("/")
-def root():return {"service":"trading-system-api","status":"ok","docs":"/docs","health":"/health"}
+def root():return {"service":"trading-system-api","status":"ok","docs":"/docs","health":"/health","broadcast":"/api/broadcast"}
 @app.get("/health")
 def health():return {"status":"ok","service":"trading-system-api","uptime_seconds":round(time.time()-started,1),"bot":engine.status()}
 @app.get("/api/status")
@@ -43,6 +43,11 @@ def portfolio():
 def positions():return {"positions":client.account_snapshot().get("positions",[]),"timestamp":time.time()}
 @app.get("/api/events")
 def events():return {"events":list(engine.events),"timestamp":time.time()}
+@app.get("/api/broadcast")
+def broadcast(limit:int=Query(50,ge=1,le=300),since:float=Query(0,ge=0)):
+    """Fetchable broadcast/event channel for the Vercel dashboard and other clients."""
+    items=[e for e in list(engine.events) if float(e.get("ts",0))>since][:limit]
+    return {"channel":"trading-engine","events":items,"cursor":max((float(e.get("ts",0)) for e in items),default=since),"timestamp":time.time()}
 @app.get("/api/equity")
 def equity():return {"series":list(engine.equity_series),"timestamp":time.time()}
 @app.get("/api/signals")
